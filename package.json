@@ -1,11 +1,8 @@
 {
-  "name": "bee-compiler",
+  "name": "honeybee-compiler",
   "version": "0.0.1",
   "main": "index.js",
   "type": "commonjs",
-  "dependencies": {
-    "import-for-web": ">=0.0.2"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "postversion": "git push && git push --tags"
