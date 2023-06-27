@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const startServer = require('./lib/server.js');
 const slash = path.join('/');
@@ -90,7 +91,7 @@ function watcher(dir,onchange,watch,isFile){
             }
         }
     }else{
-        
+        // System Error
     }
 }
 
