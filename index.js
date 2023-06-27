@@ -1,11 +1,12 @@
 const path = require('path');
+const startServer = require('./lib/server.js');
 const slash = path.join('/');
 let node_modules = path.join(__dirname).split(slash);
 node_modules.pop(); // Pops current dir_name
 node_modules = node_modules.join(slash);
 const i4w = require(path.join(node_modules,'/import-for-web/index.js')); // Require the 'import-for-web'
 //Pass the compiler to I4W before parsing or bundling
-i4w.transform(require('./compiler').translate);
+i4w.transform(require('./lib/compiler.js').translate);
 const base = i4w.baseDirectory;
 
 i4w.bundle();
@@ -124,4 +125,6 @@ function watchFile(filename,wait){
     });
 }
 
-watcher(path.join(base,"/scr/modules"),9,true);
+watcher(path.join(base, "/scr/modules"), 9, true);
+
+startServer(base);
