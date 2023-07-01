@@ -2,24 +2,34 @@ const fs = require('fs');
 const path = require('path');
 const startServer = require('./lib/server.js');
 const slash = path.join('/');
+// All pathnames ending with these file extensions are assumed to be files and not directories
+const fileExtensions = ["js", "jsx", "cjs", "mjs", "ts", "tsx"];
+// We want to get the path to the node_modules directory of the main project
 let node_modules = path.join(__dirname).split(slash);
 node_modules.pop(); // Pops current dir_name
 node_modules = node_modules.join(slash);
-const i4w = require(path.join(node_modules,'/import-for-web/index.js')); // Require the 'import-for-web'
+// Require the 'import-for-web'
+// 'import-for-web' only works if it is part of the dependecies of the project
+// We do not want our own 'import-for-web' as a dependency for this package
+// hence we use the main project's 'import-for-web' in the /node_modules
+const i4w = require(path.join(node_modules,'/import-for-web/index.js')); 
 //Pass the compiler to I4W before parsing or bundling
 i4w.transform(require('./lib/compiler.js').translate);
+// store the path to the project's directory
 const base = i4w.baseDirectory;
-
+// First parse and bundle
 i4w.bundle();
-
-
+// Maps watching files' pathnames to their descriptors
 var watchersFD = {};
-function watcher(dir,onchange,watch,isFile){
+// Watch directory and create dist/modules directories when new directories are created in src/modules 
+function watcher(dir,watch,isFile){
     if(!watch){
         try {
+            // Close watcher if file is already being watched
             watchersFD[dir].close();
         } catch (error) {
-            
+            // Closing unwatched file would cause error.
+            // Catch error
         }
         if(isFile){
             return
@@ -27,6 +37,8 @@ function watcher(dir,onchange,watch,isFile){
     }
     var contents,pathname,mainPath,err=false;
     try {
+        // Per our knowledge, `dir` is supposed to be a directory path
+        // if we can not read it contents, then it is a system error
         contents = fs.readdirSync(dir,"utf8");
     } catch (error) {
         err = true;
@@ -35,9 +47,10 @@ function watcher(dir,onchange,watch,isFile){
         if(watch){
             for(var i = 0;i<contents.length;i++){
                 pathname = contents[i].split(".").pop();
-                var is_dir = !(["js","jsx","cjs","mjs"].includes(pathname));
+
+                var is_dir = !(fileExtensions.includes(pathname));
                 if(is_dir){
-                    watcher(path.join(dir,"/"+contents[i]),9,true);
+                    watcher(path.join(dir,"/"+contents[i]),true);
                 }else{
                     watchFile(path.join(dir,"/"+contents[i]));
                 }
@@ -47,23 +60,20 @@ function watcher(dir,onchange,watch,isFile){
             watchersFD[dir] = fs.watch(dir,function(event,filename){
                     if(!emitted){
                         emitted = true;
-                        var is_dir = !(["js","jsx","cjs","mjs"].includes(filename.split(".").pop()));
+                        var is_dir = !(fileExtensions.includes(filename.split(".").pop()));
                         try {
                             if(is_dir){
                                 fs.readdirSync(path.join(dir,filename));
                             }
                         } catch (error) {
-                            // if(error.code=='ENOENT'&&error.path.startsWith(path.join(srcDir,"/scripts/"))){
-                            //     var f = error.path.replace(path.join(srcDir,"/scripts"),"");
-                            //     remove(path.join(srcDir,"/module",f));
-                            //     remove(path.join(srcDir,"/ssr/module",f));
-                            //     remove(path.join(srcDir,"/ssr/inline_modules",f));
-                            // }
-                            console.log(error);
+                            // Encounted error testing if it was a directory 
+                            //TODO: 
+                            // - Handle situation
+                            
                         }
-                        watcher(dir,9,false,false);
+                        watcher(dir,false,false);
                         setTimeout(() => {
-                            watcher(dir,9,true);
+                            watcher(dir,true);
                             emitted = false;
                         }, 100);
                     }
@@ -77,21 +87,21 @@ function watcher(dir,onchange,watch,isFile){
         }else{
             for(var i = 0;i<contents.length;i++){
                 pathname = contents[i].split(".").pop();
-                var is_dir = !(["js","jsx","cjs","mjs"].includes(pathname));
+                var is_dir = !(fileExtensions.includes(pathname));
                 mainPath = path.join(dir,"/"+contents[i]);
                 if(is_dir){
                     if(watchersFD[mainPath]){
-                        watcher(mainPath,9,false);
+                        watcher(mainPath,false);
                     }
                 }else{
                     if(watchersFD[mainPath]){
-                        watcher(mainPath,9,false,true);
+                        watcher(mainPath,false,true);
                     }
                 }
             }
         }
-    }else{
-        // System Error
+    } else {
+        // system error
     }
 }
 
@@ -99,25 +109,19 @@ function watchFile(filename,wait){
     let emmited = false;
     if(watchersFD[filename]){
         try {
+            // Close watcher if file is already being watched
             watchersFD[filename].close()
         } catch (error) {
-            
+            // Closing unwatched file would cause error.
+            // Catch error
         }
     }
     watchersFD[filename] = fs.watch(filename,function(event,f_name){
         if(!emmited){
             emmited = true;
-            watcher(filename,9,false,true);
+            watcher(filename,false,true);
             setTimeout(() => {
-                
                 i4w.bundle();
-                //buildScripts(filename);
-                // if(!ups_cleared){
-                //     updates = {};
-                //     ups_cleared = true;
-                // }
-                // updates[(filename.replace(path.join(srcDir,"/scripts/"),"/module/")).replace(/\\/g,"/").replace(/\/\//g,"/")]
-                // = true;
                 watchFile(filename);
                 emmited = false;
 
@@ -126,6 +130,6 @@ function watchFile(filename,wait){
     });
 }
 
-watcher(path.join(base, "/scr/modules"), 9, true);
+watcher(path.join(base, "/src/modules"), true,false);
 
 startServer(base);
