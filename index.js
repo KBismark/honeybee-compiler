@@ -18,6 +18,10 @@ const i4w = require(path.join(node_modules,'/import-for-web/index.js'));
 // store the path to the project's directory
 const base = i4w.baseDirectory;
 
+// Project package.json
+const packageJSON = require(`${base}/package.json`);
+
+// Support for plugins
 let plugins,plug = (code) => code;
 try {
     plugins = require(path.join(base, '/i4w.plugin.js'));
@@ -156,4 +160,14 @@ function watchFile(filename,wait){
 
 watcher(path.join(base, "/src/modules"), true,false);
 
-startServer(base);
+const exportor = () => { };
+if (!packageJSON.extended) {
+    startServer(base);
+} else {
+    // Extended mode
+    exportor = () => {
+        startServer(base, true);
+    }
+}
+
+module.exports = exportor;
