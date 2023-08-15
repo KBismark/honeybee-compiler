@@ -160,7 +160,8 @@ function watchFile(filename,wait){
 
 watcher(path.join(base, "/src/modules"), true,false);
 
-const exportor = () => { };
+let exportor = () => { };
+
 if (!packageJSON.extended) {
     startServer(base);
 } else {
