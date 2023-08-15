@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const compiler = require('./lib/compiler.js');
 const startServer = require('./lib/server.js');
 const slash = path.join('/');
 // All pathnames ending with these file extensions are assumed to be files and not directories
@@ -13,10 +14,33 @@ node_modules = node_modules.join(slash);
 // We do not want our own 'import-for-web' as a dependency for this package
 // hence we use the main project's 'import-for-web' in the /node_modules
 const i4w = require(path.join(node_modules,'/import-for-web/index.js')); 
-//Pass the compiler to I4W before parsing or bundling
-i4w.transform(require('./lib/compiler.js').translate);
+
 // store the path to the project's directory
 const base = i4w.baseDirectory;
+
+let plugins,plug = (code) => code;
+try {
+    plugins = require(path.join(base, '/i4w.plugin.js'));
+    plugins.before = plugins.before?plugins.before:plug;;
+    plugins.mid = plugins.mid?plugins.mid:plug;
+    plugins.after = plugins.after?plugins.after:plug;
+} catch (error) { 
+    plugins = {
+        before: plug,
+        mid: plug,
+        after: plug
+    }
+}
+
+//Pass the compiler to I4W before parsing or bundling
+i4w.transform({
+    before: plugins.before,
+    mid: (code) => { 
+        code = compiler.translate(code);
+        return plugins.mid(code);
+    },
+    after: plugins.after
+});
 // First parse and bundle
 i4w.bundle();
 // Maps watching files' pathnames to their descriptors
